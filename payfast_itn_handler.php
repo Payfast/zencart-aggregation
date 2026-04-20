@@ -5,7 +5,7 @@
  *
  * Callback handler for Payfast ITN
  *
- * Copyright (c) 2025 Payfast (Pty) Ltd
+ * Copyright (c) 2026 Payfast (Pty) Ltd
  * You (being anyone who is not Payfast (Pty) Ltd) may download and use this plugin / code in your own
  * website in conjunction with a registered and active Payfast account. If your Payfast account is terminated for any
  * reason, you may not use this plugin / code or part thereof.
@@ -17,8 +17,12 @@ $show_all_errors   = false;
 $current_page_base = 'payfastitn';
 $loaderPrefix      = 'payfast_itn';
 
-require_once 'includes/configure.php';
-require_once 'includes/defined_paths.php';
+// Guard against multiple includes by checking if key constants are already defined
+// These are defined in configure.php and defined_paths.php
+if (!defined('DIR_FS_CATALOG')) {
+    require_once 'includes/configure.php';
+    require_once 'includes/defined_paths.php';
+}
 require_once 'includes/modules/payment/payfast/payfast_functions.php';
 require_once 'includes/application_top.php';
 
@@ -26,37 +30,76 @@ if (!defined('TOPMOST_CATEGORY_PARENT_ID')) {
     define('TOPMOST_CATEGORY_PARENT_ID', 0);
 }
 
-require_once DIR_WS_CLASSES . 'payment.php';
+// These classes are already loaded by application_top.php via InitSystem
+// Explicitly requiring them again causes "Cannot redeclare" errors
+// But we need to ensure they're available if not already loaded
+if (!class_exists('order')) {
+    require_once DIR_WS_CLASSES . 'order.php';
+}
+if (!class_exists('order_total')) {
+    require_once DIR_WS_CLASSES . 'order_total.php';
+}
+if (!class_exists('Customer')) {
+    require_once DIR_WS_CLASSES . 'customer.php';
+}
+if (!class_exists('shopping_cart')) {
+    require_once DIR_WS_CLASSES . 'shopping_cart.php';
+}
+if (!class_exists('payment')) {
+    require_once DIR_WS_CLASSES . 'payment.php';
+}
 require_once 'includes/modules/payment/payfast/vendor/autoload.php';
 require_once 'includes/classes/PayfastConfig.php';
 require_once 'includes/classes/PayfastLogger.php';
 require_once 'includes/classes/PayfastITN.php';
 require_once 'includes/classes/ZenCartOrderManager.php';
 
-if (!defined('PF_SOFTWARE_NAME')) define('PF_SOFTWARE_NAME', 'ZenCart');
-if (!defined('PF_SOFTWARE_VER')) define('PF_SOFTWARE_VER', PROJECT_VERSION_MAJOR . '.' . PROJECT_VERSION_MINOR);
-if (!defined('PF_MODULE_NAME')) define('PF_MODULE_NAME', 'Payfast_ZenCart');
-if (!defined('PF_MODULE_VER')) define('PF_MODULE_VER', '1.4.0');
-if (!defined('MODULE_PAYMENT_PF_SERVER_LIVE')) define('MODULE_PAYMENT_PF_SERVER_LIVE', 'payfast.co.za');
-if (!defined('MODULE_PAYMENT_PF_SERVER_TEST')) define('MODULE_PAYMENT_PF_SERVER_TEST', 'sandbox.payfast.co.za');
-if (!defined('PF_DEBUG')) define('PF_DEBUG', true);
+// Load email language constants (optional - we have fallbacks in getOrderConfirmationMessage)
+$emailLangFile = DIR_WS_LANGUAGES . (isset($GLOBALS['language']) ? $GLOBALS['language'] : 'english') . '/email_template_checkout.php';
+if ($emailLangFile && file_exists($emailLangFile)) {
+    require_once $emailLangFile;
+}
 
-class PayfastITNHandler {
-    private $config;
-    private $logger;
-    private $itn;
-    private $orderManager;
+if (!defined('PF_SOFTWARE_NAME')) {
+    define('PF_SOFTWARE_NAME', 'ZenCart');
+}
+if (!defined('PF_SOFTWARE_VER')) {
+    define('PF_SOFTWARE_VER', PROJECT_VERSION_MAJOR . '.' . PROJECT_VERSION_MINOR);
+}
+if (!defined('PF_MODULE_NAME')) {
+    define('PF_MODULE_NAME', 'Payfast_ZenCart');
+}
+if (!defined('PF_MODULE_VER')) {
+    define('PF_MODULE_VER', '1.5.0');
+}
+if (!defined('MODULE_PAYMENT_PF_SERVER_LIVE')) {
+    define('MODULE_PAYMENT_PF_SERVER_LIVE', 'payfast.co.za');
+}
+if (!defined('MODULE_PAYMENT_PF_SERVER_TEST')) {
+    define('MODULE_PAYMENT_PF_SERVER_TEST', 'sandbox.payfast.co.za');
+}
+if (!defined('PF_DEBUG')) {
+    define('PF_DEBUG', true);
+}
 
-    public function __construct($db) {
-        $this->config = new PayfastConfig();
-        $this->itn = new PayfastITN();
-        $this->logger = new PayfastLogger($this->itn->getPaymentRequest());
+class PayfastITNHandler
+{
+    private PayfastConfig $config;
+    private PayfastLogger $logger;
+    private PayfastITN $itn;
+    private ZenCartOrderManager $orderManager;
+
+    public function __construct(object $db)
+    {
+        $this->config       = new PayfastConfig();
+        $this->itn          = new PayfastITN();
+        $this->logger       = new PayfastLogger($this->itn->getPaymentRequest());
         $this->orderManager = new ZenCartOrderManager($db);
     }
 
-    public function handleRequest() {
+    public function handleRequest(): void
+    {
         try {
-            $this->logger->log('Payfast ITN call received');
             header('HTTP/1.0 200 OK');
             flush();
 
@@ -64,7 +107,6 @@ class PayfastITNHandler {
             if ($data === false) {
                 throw new Exception(PayfastITN::PF_ERR_BAD_ACCESS);
             }
-            $this->logger->log('Payfast Data: ' . json_encode($data));
 
             if (!$this->itn->isSignatureValid($this->config->getPassphrase())) {
                 throw new Exception(PayfastITN::PF_ERR_INVALID_SIGNATURE);
@@ -81,19 +123,12 @@ class PayfastITNHandler {
         }
     }
 
-    private function processTransaction($data) {
+    private function processTransaction(array $data): void
+    {
         global $zco_notifier;
         $zco_notifier->notify('NOTIFY_CHECKOUT_PROCESS_BEGIN');
         list($pfOrderId, $zcOrderId, $txnType) = $this->orderManager->lookupTransaction($data);
-        $this->logger->log(
-            'Transaction details:' .
-            "\n- pfOrderId = " . ($pfOrderId ?? 'null') .
-            "\n- zcOrderId = " . ($zcOrderId ?? 'null') .
-            "\n- txnType   = " . ($txnType ?? 'null')
-        );
         $ts = time();
-
-        $this->logger->log('Processing transaction');
 
         switch ($txnType) {
             case 'new':
@@ -109,7 +144,6 @@ class PayfastITNHandler {
                 $this->handleFailedTransaction($data, $pfOrderId, $zcOrderId, $ts);
                 break;
             default:
-                $this->logger->log("Unknown transaction type: $txnType");
                 break;
         }
 
@@ -118,57 +152,43 @@ class PayfastITNHandler {
         }
     }
 
-    private function handleNewTransaction($data, $ts) {
+    private function handleNewTransaction(array $data, int $ts): void
+    {
         global $order, $zco_notifier, $order_total_modules, $order_totals;
         list($zcSessName, $zcSessID) = explode('=', $data['custom_str2']);
-        $this->logger->log('Session Name = ' . $zcSessName . ', Session ID = ' . $zcSessID);
         $session = $this->orderManager->retrieveSession($zcSessID);
-        $this->logger->log('Session contents: ' . print_r($session, true));
         $this->orderManager->createOrderEnvironment($session);
 
         // Ensure customer_id is set
         if (!isset($session['customer_id'])) {
-            $this->logger->log('Warning: customer_id missing in session, attempting to set from data');
             if (isset($data['custom_int1'])) {
                 $_SESSION['customer_id'] = $data['custom_int1'];
             } else {
-                $this->logger->log('Error: No customer_id available');
                 throw new Exception('Missing customer_id in session or Payfast data');
             }
         }
-        $this->logger->log('Customer ID: ' . ($_SESSION['customer_id'] ?? 'Not set'));
 
         // Initialize Customer object
         $customer = new Customer($_SESSION['customer_id']);
-        $this->logger->log('Customer initialized: ' . (is_object($customer) ? 'Success' : 'Failed'));
 
         if (!isset($session['cart']) || !is_object($session['cart'])) {
-            $this->logger->log('Warning: Cart missing in session, initializing empty cart');
-            $session['cart'] = new shoppingCart();
+            $session['cart']  = new shoppingCart();
             $_SESSION['cart'] = $session['cart'];
         }
-        $this->logger->log('Cart contents: ' . print_r($_SESSION['cart'], true));
 
         if (!$this->orderManager->checkOrderData($data)) {
             throw new Exception(PayfastITN::PF_ERR_AMOUNT_MISMATCH);
         }
 
         $order = new order();
-        $this->logger->log('Order info: ' . print_r($order->info, true));
         if (is_null($order)) {
-            $this->logger->log('Error: $order is null after initialization');
             throw new Exception('Failed to initialize order object');
         }
 
         $order_total_modules = new order_total();
         $zco_notifier->notify('NOTIFY_CHECKOUT_PROCESS_BEFORE_ORDER_TOTALS_PROCESS');
-        $this->logger->log('Calling order_total::process()');
         $order_totals = $order_total_modules->process();
-        $this->logger->log('Returned from order_total::process(): ' . print_r($order_totals, true));
         $zco_notifier->notify('NOTIFY_CHECKOUT_PROCESS_AFTER_ORDER_TOTALS_PROCESS');
-
-        $this->logger->log('Global $order_total_modules: ' . (is_object($order_total_modules) ? 'Set' : 'Null'));
-        $this->logger->log('Global $order_totals: ' . (is_array($order_totals) ? print_r($order_totals, true) : 'Null'));
 
         $zcOrderId = $this->orderManager->createOrder($order, $order_totals);
         $pfOrderId = $this->orderManager->createPayfastOrder($data, $zcOrderId, $ts);
@@ -176,28 +196,73 @@ class PayfastITNHandler {
 
         $newStatus = ($data['payment_status'] === 'PENDING') ?
             MODULE_PAYMENT_PF_PROCESSING_STATUS_ID : MODULE_PAYMENT_PF_ORDER_STATUS_ID;
-        $this->orderManager->updateOrderStatus($zcOrderId, $newStatus, 'Payfast status: ' . $data['payment_status'], $ts);
+        $this->orderManager->updateOrderStatus(
+            $zcOrderId,
+            $newStatus,
+            'Payfast status: ' . $data['payment_status'],
+            $ts
+        );
 
         $this->orderManager->addProductsToOrder($order, $zcOrderId);
+
+        // Send order confirmation email to customer
+        $order = new order($zcOrderId);
+        $zco_notifier->notify('NOTIFY_ORDER_CREATED', (int)$zcOrderId);
+
+        // Ensure zcDate is initialized for email template processing
+        global $zcDate;
+        if (!isset($zcDate) || !is_object($zcDate)) {
+            if (!class_exists('zcDate')) {
+                require_once DIR_WS_CLASSES . 'zcDate.php';
+            }
+            $zcDate = new zcDate();
+        }
+
+        // Send order confirmation email via zen_mail
+        zen_mail(
+            $order->customer['name'],
+            $order->customer['email_address'],
+            defined(
+                'EMAIL_TEXT_SUBJECT'
+            ) ? EMAIL_TEXT_SUBJECT . EMAIL_ORDER_NUMBER_SUBJECT . $zcOrderId : 'Order Confirmation',
+            $this->getOrderConfirmationMessage($order),
+            STORE_OWNER,
+            STORE_OWNER_EMAIL_ADDRESS,
+            [],
+            'checkout'
+        );
+
         $this->orderManager->deleteSession($zcSessID);
         $this->logger->log('Payfast ITN Complete');
-
     }
 
-    private function handleClearedTransaction($data, $pfOrderId, $zcOrderId, $ts) {
+    private function handleClearedTransaction(array $data, int $pfOrderId, int $zcOrderId, int $ts): void
+    {
         $this->orderManager->createPayfastHistory($data, $pfOrderId, $ts);
         $newStatus = MODULE_PAYMENT_PF_ORDER_STATUS_ID;
-        $this->orderManager->updateOrderStatus($zcOrderId, $newStatus, 'Payfast status: ' . $data['payment_status'], $ts);
+        $this->orderManager->updateOrderStatus(
+            $zcOrderId,
+            $newStatus,
+            'Payfast status: ' . $data['payment_status'],
+            $ts
+        );
     }
 
-    private function handleUpdateTransaction($data, $pfOrderId, $ts) {
+    private function handleUpdateTransaction(array $data, int $pfOrderId, int $ts): void
+    {
         $this->orderManager->createPayfastHistory($data, $pfOrderId, $ts);
     }
 
-    private function handleFailedTransaction($data, $pfOrderId, $zcOrderId, $ts) {
+    private function handleFailedTransaction(array $data, int $pfOrderId, int $zcOrderId, int $ts): void
+    {
         $this->orderManager->createPayfastHistory($data, $pfOrderId, $ts);
         $newStatus = MODULE_PAYMENT_PF_PREPARE_ORDER_STATUS_ID;
-        $this->orderManager->updateOrderStatus($zcOrderId, $newStatus, 'Payment failed (Payfast id = ' . $data['pf_payment_id'] . ')', $ts);
+        $this->orderManager->updateOrderStatus(
+            $zcOrderId,
+            $newStatus,
+            'Payment failed (Payfast id = ' . $data['pf_payment_id'] . ')',
+            $ts
+        );
 
         $this->sendErrorEmail(
             'Payfast ITN Transaction on your site',
@@ -211,26 +276,28 @@ class PayfastITNHandler {
         );
     }
 
-    private function handleError($errorMessage, $data) {
+    private function handleError(string $errorMessage, array $data): void
+    {
         $this->logger->log("Error: $errorMessage");
         header('HTTP/1.1 500 Internal Server Error');
         flush();
 
         $body = "An invalid Payfast transaction on your website requires attention\n" .
-            "------------------------------------------------------------\n" .
-            "Site: " . STORE_NAME . ' (' . HTTP_SERVER . DIR_WS_CATALOG . ")\n" .
-            "Remote IP Address: " . $_SERVER['REMOTE_ADDR'] . "\n" .
-            "Remote host name: " . gethostbyaddr($_SERVER['REMOTE_ADDR']) . "\n" .
-            (isset($data['pf_payment_id']) ? "Payfast Transaction ID: " . $data['pf_payment_id'] . "\n" : '') .
-            (isset($data['payment_status']) ? "Payfast Payment Status: " . $data['payment_status'] . "\n" : '') .
-            "Error: $errorMessage";
+                "------------------------------------------------------------\n" .
+                "Site: " . STORE_NAME . ' (' . HTTP_SERVER . DIR_WS_CATALOG . ")\n" .
+                "Remote IP Address: " . $_SERVER['REMOTE_ADDR'] . "\n" .
+                "Remote host name: " . gethostbyaddr($_SERVER['REMOTE_ADDR']) . "\n" .
+                (isset($data['pf_payment_id']) ? "Payfast Transaction ID: " . $data['pf_payment_id'] . "\n" : '') .
+                (isset($data['payment_status']) ? "Payfast Payment Status: " . $data['payment_status'] . "\n" : '') .
+                "Error: $errorMessage";
         if ($errorMessage === PayfastITN::PF_ERR_AMOUNT_MISMATCH) {
             $body .= "\nValue received: " . $data['amount_gross'] . "\nValue should be: " . $_SESSION['payfast_amount'];
         }
         $this->sendErrorEmail("Payfast ITN error: $errorMessage", $body);
     }
 
-    private function sendErrorEmail($subject, $body) {
+    private function sendErrorEmail(string $subject, string $body): void
+    {
         zen_mail(
             STORE_OWNER,
             $this->config->getDebugEmail(),
@@ -241,6 +308,58 @@ class PayfastITNHandler {
             null,
             'debug'
         );
+    }
+
+    private function getOrderConfirmationMessage(object $order): string
+    {
+        // Define fallback constants if not already defined
+        if (!defined('EMAIL_TEXT_SUBJECT_ORDER_CONFIRMATION')) {
+            define('EMAIL_TEXT_SUBJECT_ORDER_CONFIRMATION', 'Order Confirmation');
+        }
+        if (!defined('EMAIL_TEXT_ORDER_NUMBER')) {
+            define('EMAIL_TEXT_ORDER_NUMBER', 'Order #');
+        }
+        if (!defined('EMAIL_TEXT_INVOICE_URL')) {
+            define('EMAIL_TEXT_INVOICE_URL', 'View Your Order:');
+        }
+        if (!defined('EMAIL_TEXT_PRODUCTS')) {
+            define('EMAIL_TEXT_PRODUCTS', 'Products Ordered:');
+        }
+        if (!defined('EMAIL_TEXT_PAYMENT_METHOD')) {
+            define('EMAIL_TEXT_PAYMENT_METHOD', 'Payment Method:');
+        }
+
+        $message = EMAIL_TEXT_SUBJECT_ORDER_CONFIRMATION . "\n\n";
+        $message .= EMAIL_TEXT_ORDER_NUMBER . ' ' . $order->info['order_number'] . "\n";
+
+        // Build order URL with fallback for constants
+        $catalogServer = defined('HTTP_CATALOG_SERVER') ? HTTP_CATALOG_SERVER : (defined(
+            'HTTP_SERVER'
+        ) ? HTTP_SERVER : 'https://example.com');
+        $wsRoot        = defined('DIR_WS_CATALOG') ? DIR_WS_CATALOG : '/';
+        $message       .= EMAIL_TEXT_INVOICE_URL . ' ' . $catalogServer . $wsRoot . 'index.php?main_page=account&page=order&order_id=' . $order->info['orders_id'] . "\n\n";
+
+        $message .= EMAIL_TEXT_PRODUCTS . "\n";
+        $message .= "----\n";
+        for ($i = 0; $i < sizeof($order->products); $i++) {
+            $message .= $order->products[$i]['qty'] . ' x ' . $order->products[$i]['name'];
+            if (isset($order->products[$i]['attributes']) && sizeof($order->products[$i]['attributes']) > 0) {
+                for ($j = 0; $j < sizeof($order->products[$i]['attributes']); $j++) {
+                    $message .= "\n    " . $order->products[$i]['attributes'][$j]['option'] . ' ' . $order->products[$i]['attributes'][$j]['value'];
+                }
+            }
+            $message .= ' (' . $order->products[$i]['model'] . ') = ' . $order->products[$i]['final_price'] * $order->products[$i]['qty'] . "\n";
+        }
+        $message .= "----\n\n";
+
+        for ($i = 0; $i < sizeof($order->totals); $i++) {
+            $message .= $order->totals[$i]['title'] . ' ' . $order->totals[$i]['text'] . "\n";
+        }
+
+        $message .= "\n" . EMAIL_TEXT_PAYMENT_METHOD . "\n";
+        $message .= $order->info['payment_method'] . "\n\n";
+
+        return $message;
     }
 }
 

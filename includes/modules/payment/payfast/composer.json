@@ -1,5 +1,11 @@
 {
-    "require": {
-        "payfast/payfast-common": "^1.4.0"
+  "require": {
+    "php": ">=8.1",
+    "payfast/payfast-common": "1.4.1"
+  },
+  "config": {
+    "platform": {
+      "php": "8.3"
     }
+  }
 }

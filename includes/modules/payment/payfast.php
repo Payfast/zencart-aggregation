@@ -6,7 +6,7 @@
  * Main module file which is responsible for installing, editing and deleting
  * module details from DB and sending data to Payfast.
  *
- * Copyright (c) 2025 Payfast (Pty) Ltd
+ * Copyright (c) 2026 Payfast (Pty) Ltd
  * You (being anyone who is not Payfast (Pty) Ltd) may download and use this plugin / code in your own website in
  * conjunction with a registered and active Payfast account. If your Payfast account is terminated for any reason,
  * you may not use this plugin / code or part thereof.
@@ -24,12 +24,17 @@ include_once (IS_ADMIN_FLAG === true ? DIR_FS_CATALOG_MODULES : DIR_WS_MODULES) 
 
 require_once __DIR__ . '/payfast/vendor/autoload.php';
 require_once __DIR__ . '/payfast/payfastinstaller.php';
+
 // phpcs:enable
 
 use Payfast\PayfastCommon\Aggregator\Request\PaymentRequest;
 
-const PF_MODULE_NAME = 'Payfast_ZenCart';
-const PF_MODULE_VER = '1.4.0';
+if (!defined('PF_MODULE_NAME')) {
+    define('PF_MODULE_NAME', 'Payfast_ZenCart');
+}
+if (!defined('PF_MODULE_VER')) {
+    define('PF_MODULE_VER', '1.5.0');
+}
 
 /**
  * payfast
@@ -94,10 +99,10 @@ class payfast extends base
     public function __construct(string $id = '')
     {
         global $order, $messageStack;
-        $this->code        = 'payfast';
-        $this->codeVersion = '1.5.8';
+        $this->code            = 'payfast';
+        $this->codeVersion     = '1.5.8';
         $this->form_action_url = '';
-        $this->sort_order = 0;
+        $this->sort_order      = 0;
 
         if (IS_ADMIN_FLAG === true) {
             $this->title = 'Payfast Aggregation';
@@ -137,6 +142,7 @@ class payfast extends base
         if (MODULE_PAYMENT_PF_SERVER == 'Test') {
             return '<span class="alert"> (test mode active)</span>';
         }
+
         return '';
     }
 
@@ -301,9 +307,9 @@ class payfast extends base
         //// Set the currency and get the order amount
         $currency                   = 'ZAR';
         $currencyDecPlaces          = $currencies->get_decimal_places($currency);
-        $totalsum = $order->info['total'];
+        $totalsum                   = $order->info['total'];
         $this->transaction_currency = $currency;
-        $transaction_amount = ($totalsum * $currencies->get_value($currency));
+        $transaction_amount         = ($totalsum * $currencies->get_value($currency));
 
         //// Generate the order description
         $orderDescription = '';
@@ -318,8 +324,8 @@ class payfast extends base
                 'UTF-8'
             );
 
-            $productName = preg_replace('/\s+/', ' ', $productName);
-            $productName = trim($productName);
+            $productName      = preg_replace('/\s+/', ' ', $productName);
+            $productName      = trim($productName);
             $orderDescription .= $product['qty'] . ' x ' . $productName;
 
             if ($product['qty'] > 1) {
@@ -434,7 +440,7 @@ class payfast extends base
      */
     public function before_process(): void
     {
-        $pre = __METHOD__ . ' : ';
+        $pre            = __METHOD__ . ' : ';
         $paymentRequest = new PaymentRequest(true);
 
         $paymentRequest->pflog($pre . 'bof');
@@ -509,7 +515,7 @@ class payfast extends base
      */
     public function after_process(): bool
     {
-        $pre = __METHOD__ . ' : ';
+        $pre            = __METHOD__ . ' : ';
         $paymentRequest = new PaymentRequest(true);
 
         $paymentRequest->pflog($pre . 'bof');
@@ -633,7 +639,7 @@ class payfast extends base
      */
     public function after_order_create($insert_id): bool
     {
-        $pre = __METHOD__ . ' : ';
+        $pre            = __METHOD__ . ' : ';
         $paymentRequest = new PaymentRequest(true);
 
         $paymentRequest->pflog($pre . 'bof');

@@ -5,7 +5,7 @@
  *
  * Functions used by payment module class for Payfast ITN payment method
  *
- * Copyright (c) 2025 Payfast (Pty) Ltd
+ * Copyright (c) 2026 Payfast (Pty) Ltd
  * You (being anyone who is not Payfast (Pty) Ltd) may download and use this plugin / code in your own website in
  * conjunction with a registered and active Payfast account. If your Payfast account is terminated for any reason,
  * you may not use this plugin / code or part thereof.
@@ -13,6 +13,7 @@
  * part thereof in any way.
  */
 require_once __DIR__ . '/vendor/autoload.php';
+
 // phpcs:enable
 
 use Payfast\PayfastCommon\Aggregator\Request\PaymentRequest;
@@ -26,14 +27,14 @@ const TABLE_PAYFAST                        = DB_PREFIX . 'payfast';
 const TABLE_PAYFAST_SESSION                = DB_PREFIX . 'payfast_session';
 const TABLE_PAYFAST_PAYMENT_STATUS         = DB_PREFIX . 'payfast_payment_status';
 const TABLE_PAYFAST_PAYMENT_STATUS_HISTORY = DB_PREFIX . 'payfast_payment_status_history';
-const TABLE_PAYFAST_TESTING = DB_PREFIX . 'payfast_testing';
+const TABLE_PAYFAST_TESTING                = DB_PREFIX . 'payfast_testing';
 
 // Formatting
 const PF_FORMAT_DATETIME    = 'Y-m-d H:i:s';
 const PF_FORMAT_DATETIME_DB = 'Y-m-d H:i:s';
-const PF_FORMAT_DATE      = 'Y-m-d';
-const PF_FORMAT_TIME      = 'H:i';
-const PF_FORMAT_TIMESTAMP = 'YmdHis';
+const PF_FORMAT_DATE        = 'Y-m-d';
+const PF_FORMAT_TIME        = 'H:i';
+const PF_FORMAT_TIMESTAMP   = 'YmdHis';
 
 // General
 const PF_SESSION_LIFE        = 7;         // # of days session is saved for
@@ -86,13 +87,13 @@ function pf_getActiveTable(): string
  *
  * Creates the array used to create a Payfast order
  *
- * @param $pfData Array|null Array of posted Payfast data
- * @param $zcOrderId Integer|null Order ID for Zen Cart order
- * @param $timestamp Integer|null Unix timestamp to use for transaction
+ * @param array $pfData Array of posted Payfast data
+ * @param int $zcOrderId Order ID for Zen Cart order
+ * @param int $timestamp Unix timestamp to use for transaction
  *
  * @author Payfast (Pty) Ltd
  */
-function pf_createOrderArray(array $pfData = null, int $zcOrderId = null, int $timestamp = null): array
+function pf_createOrderArray(array $pfData, int $zcOrderId, int $timestamp): array
 {
     // Variable initialization
     $ts = empty($timestamp) ? time() : $timestamp;
@@ -117,11 +118,11 @@ function pf_createOrderArray(array $pfData = null, int $zcOrderId = null, int $t
  *
  * Determines the type of transaction which is occuring
  *
- * @param $pfData Array|null Array of posted Payfast data
+ * @param array $pfData Array of posted Payfast data
  *
  * @author Payfast (Pty) Ltd
  */
-function pf_lookupTransaction(array $pfData = null): array
+function pf_lookupTransaction(array $pfData): array
 {
     // Variable initialization
     global $db;
@@ -181,13 +182,13 @@ function pf_lookupTransaction(array $pfData = null): array
  *
  * Creats the array required for an order history update
  *
- * @param $pfData Array|null Array of posted Payfast data
- * @param $pfOrderId Integer|null Order ID for Payfast order
- * @param $timestamp Integer|null Unix timestamp to use for transaction
+ * @param array $pfData Array of posted Payfast data
+ * @param int $pfOrderId Order ID for Payfast order
+ * @param int $timestamp Unix timestamp to use for transaction
  *
  * @author Payfast (Pty) Ltd
  */
-function pf_createOrderHistoryArray(array $pfData = null, int $pfOrderId = null, int $timestamp = null): array
+function pf_createOrderHistoryArray(array $pfData, int $pfOrderId, int $timestamp): array
 {
     return array(
         'pf_order_id'   => $pfOrderId,
@@ -203,16 +204,21 @@ function pf_createOrderHistoryArray(array $pfData = null, int $pfOrderId = null,
  * Update the Zen Cart order status and history with new information supplied
  * from Payfast.
  *
- * @param $pfData Array Array of posted Payfast data
- * @param $zcOrderId Integer Order ID for ZenCart order
- * @param $txnType
- * @param $ts
- * @param int $newStatus
+ * @param array $pfData Array of posted Payfast data
+ * @param int $zcOrderId Order ID for ZenCart order
+ * @param string $txnType Transaction type
+ * @param int $ts Timestamp
+ * @param int $newStatus New order status
  *
  * @author Payfast (Pty) Ltd
  */
-function pf_updateOrderStatusAndHistory(array $pfData, int $zcOrderId, $txnType, $ts, int $newStatus = 1): void
-{
+function pf_updateOrderStatusAndHistory(
+    array $pfData,
+    int $zcOrderId,
+    string $txnType,
+    int $ts,
+    int $newStatus = 1
+): void {
     // Variable initialization
     global $db;
 
@@ -261,9 +267,9 @@ function pf_updateOrderStatusAndHistory(array $pfData, int $zcOrderId, $txnType,
             $paymentRequest->pflog('Exception: ' . $exception->getMessage());
         }
 
-        $now          = new DateTime();
-        $diff         = $now->diff($purchaseDate, true);
-        $zcMaxDays    = $diff->days + (int)DOWNLOAD_MAX_DAYS;
+        $now       = new DateTime();
+        $diff      = $now->diff($purchaseDate, true);
+        $zcMaxDays = $diff->days + (int)DOWNLOAD_MAX_DAYS;
 
         $paymentRequest->pflog(
             'Updating order #' . $zcOrderId . ' downloads. New max days: ' .
@@ -323,10 +329,10 @@ function updateGuestOrder(int $orders_id, array $session): void
     $table     = TABLE_COUNTRIES;
     $countryId = $detail->zone_country_id->bill;
     $sql       = "select * from $table where countries_id=$countryId";
-    $rBill         = $db->Execute($sql);
+    $rBill     = $db->Execute($sql);
     $countryId = $detail->zone_country_id->ship;
     $sql       = "select * from $table where countries_id=$countryId";
-    $rShip         = $db->Execute($sql);
+    $rShip     = $db->Execute($sql);
 
     $firstname               = $detail->firstname->bill;
     $lastname                = $detail->lastname->bill;
