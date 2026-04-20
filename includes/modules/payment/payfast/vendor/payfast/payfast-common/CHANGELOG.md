@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.4.1](https://github.com/Payfast/payfast-common/releases/tag/v1.4.1)
+
+### Fixed
+
+- **Aggregator**: Enhanced the `pflog()` function to resolve the invalid stream resource error, improving stability and error handling.
+
 ## [1.4.0](https://github.com/Payfast/payfast-common/releases/tag/v1.4.0)
 
 ### Added

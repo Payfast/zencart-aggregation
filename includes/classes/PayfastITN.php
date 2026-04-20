@@ -2,40 +2,47 @@
 
 use Payfast\PayfastCommon\Aggregator\Request\PaymentRequest;
 
-class PayfastITN {
-    private $paymentRequest;
-    private $data;
-    private $pfParamString;
+class PayfastITN
+{
+    private PaymentRequest $paymentRequest;
+    private array|false $data;
+    private string $pfParamString;
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->paymentRequest = new PaymentRequest(true);
-        $this->data = $this->paymentRequest->pfGetData();
-        $this->pfParamString = '';
+        $this->data           = $this->paymentRequest->pfGetData();
+        $this->pfParamString  = '';
     }
 
-    public function getData() {
+    public function getData(): array|false
+    {
         return $this->data;
     }
 
-    public function isSignatureValid($passphrase) {
+    public function isSignatureValid(string $passphrase): bool
+    {
         return $this->paymentRequest->pfValidSignature($this->data, $this->pfParamString, $passphrase);
     }
 
-    public function isDataValid($moduleInfo, $host) {
+    public function isDataValid(array $moduleInfo, string $host): bool
+    {
         return $this->paymentRequest->pfValidData($moduleInfo, $host, $this->pfParamString);
     }
 
-    public function amountsEqual($amount1, $amount2) {
+    public function amountsEqual(float|int $amount1, float|int $amount2): bool
+    {
         return $this->paymentRequest->pfAmountsEqual($amount1, $amount2);
     }
 
-    public function getPaymentRequest() {
+    public function getPaymentRequest(): PaymentRequest
+    {
         return $this->paymentRequest;
     }
 
     // Expose constants from PaymentRequest for error handling
-    const PF_ERR_BAD_ACCESS = 'An invalid request was sent to the server';
-    const PF_ERR_INVALID_SIGNATURE = 'Invalid signature';
-    const PF_ERR_NO_SESSION = 'No saved session found';
-    const PF_ERR_AMOUNT_MISMATCH = 'Amount mismatch';
+    public const PF_ERR_BAD_ACCESS        = 'An invalid request was sent to the server';
+    public const PF_ERR_INVALID_SIGNATURE = 'Invalid signature';
+    public const PF_ERR_NO_SESSION        = 'No saved session found';
+    public const PF_ERR_AMOUNT_MISMATCH   = 'Amount mismatch';
 }

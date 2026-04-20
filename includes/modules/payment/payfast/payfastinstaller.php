@@ -149,16 +149,18 @@ class payfastinstaller extends base
     private function createPaymentStatusTable()
     {
         $this->db->Execute(
-            self::CREATE_LITERAL . TABLE_PAYFAST_PAYMENT_STATUS . " (
+            "CREATE TABLE IF NOT EXISTS " . TABLE_PAYFAST_PAYMENT_STATUS . " (
                 `id` INTEGER UNSIGNED NOT NULL,
                 `name` VARCHAR(50) NOT NULL,
                 PRIMARY KEY (`id`)
             ) ENGINE=MyISAM DEFAULT CHARSET=latin1"
         );
 
+        // Safe seed (won't fail if rows already exist)
         $this->db->Execute(
             "INSERT INTO " . TABLE_PAYFAST_PAYMENT_STATUS . " (`id`, `name`)
-             VALUES (1, 'COMPLETE'), (2, 'PENDING'), (3, 'FAILED')"
+             VALUES (1, 'COMPLETE'), (2, 'PENDING'), (3, 'FAILED')
+             ON DUPLICATE KEY UPDATE `name` = VALUES(`name`)"
         );
     }
 

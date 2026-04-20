@@ -5,7 +5,7 @@
  *
  * Lanugage defines for Payfast payment module
  *
- * Copyright (c) 2025 Payfast (Pty) Ltd
+ * Copyright (c) 2026 Payfast (Pty) Ltd
  * You (being anyone who is not Payfast (Pty) Ltd) may download and use this plugin / code in your own website in
  * conjunction with a registered and active Payfast account. If your Payfast account is terminated for any reason,
  * you may not use this plugin / code or part thereof.
@@ -15,7 +15,7 @@
 
 const MODULE_PAYMENT_PF_TEXT_ADMIN_TITLE   = 'Payfast';
 const MODULE_PAYMENT_PF_TEXT_CATALOG_TITLE = 'Payfast';
-const MODULE_PAYMENT_PF_BUTTON_IMG = DIR_WS_IMAGES . 'payfast/payfast-logo.svg';
+const MODULE_PAYMENT_PF_BUTTON_IMG         = DIR_WS_IMAGES . 'payfast/payfast-logo.svg';
 
 if (IS_ADMIN_FLAG === true) {
     define(
@@ -49,23 +49,23 @@ const MODULE_PAYMENT_PF_ENTRY_ADDRESS_CITY    = 'Address City:';
 const MODULE_PAYMENT_PF_ENTRY_ADDRESS_STATE   = 'Address State:';
 const MODULE_PAYMENT_PF_ENTRY_ADDRESS_ZIP     = 'Address Zip:';
 const MODULE_PAYMENT_PF_ENTRY_ADDRESS_COUNTRY = 'Address Country:';
-const MODULE_PAYMENT_PF_ENTRY_EMAIL_ADDRESS  = 'Payer Email:';
-const MODULE_PAYMENT_PF_ENTRY_EBAY_ID        = 'Ebay ID:';
-const MODULE_PAYMENT_PF_ENTRY_PAYER_ID       = 'Payer ID:';
-const MODULE_PAYMENT_PF_ENTRY_PAYER_STATUS   = 'Payer Status:';
-const MODULE_PAYMENT_PF_ENTRY_ADDRESS_STATUS = 'Address Status:';
+const MODULE_PAYMENT_PF_ENTRY_EMAIL_ADDRESS   = 'Payer Email:';
+const MODULE_PAYMENT_PF_ENTRY_EBAY_ID         = 'Ebay ID:';
+const MODULE_PAYMENT_PF_ENTRY_PAYER_ID        = 'Payer ID:';
+const MODULE_PAYMENT_PF_ENTRY_PAYER_STATUS    = 'Payer Status:';
+const MODULE_PAYMENT_PF_ENTRY_ADDRESS_STATUS  = 'Address Status:';
 
 const MODULE_PAYMENT_PF_ENTRY_PAYMENT_TYPE   = 'Payment Type:';
 const MODULE_PAYMENT_PF_ENTRY_PAYMENT_STATUS = 'Payment Status:';
 const MODULE_PAYMENT_PF_ENTRY_PENDING_REASON = 'Pending Reason:';
-const MODULE_PAYMENT_PF_ENTRY_INVOICE       = 'Invoice:';
-const MODULE_PAYMENT_PF_ENTRY_PAYMENT_DATE  = 'Payment Date:';
-const MODULE_PAYMENT_PF_ENTRY_CURRENCY      = 'Currency:';
-const MODULE_PAYMENT_PF_ENTRY_GROSS_AMOUNT  = 'Gross Amount:';
-const MODULE_PAYMENT_PF_ENTRY_PAYMENT_FEE   = 'Payment Fee:';
-const MODULE_PAYMENT_PF_ENTRY_CART_ITEMS    = 'Cart items:';
-const MODULE_PAYMENT_PF_ENTRY_TXN_TYPE      = 'Trans. Type:';
-const MODULE_PAYMENT_PF_ENTRY_TXN_ID        = 'Trans. ID:';
-const MODULE_PAYMENT_PF_ENTRY_PARENT_TXN_ID = 'Parent Trans. ID:';
+const MODULE_PAYMENT_PF_ENTRY_INVOICE        = 'Invoice:';
+const MODULE_PAYMENT_PF_ENTRY_PAYMENT_DATE   = 'Payment Date:';
+const MODULE_PAYMENT_PF_ENTRY_CURRENCY       = 'Currency:';
+const MODULE_PAYMENT_PF_ENTRY_GROSS_AMOUNT   = 'Gross Amount:';
+const MODULE_PAYMENT_PF_ENTRY_PAYMENT_FEE    = 'Payment Fee:';
+const MODULE_PAYMENT_PF_ENTRY_CART_ITEMS     = 'Cart items:';
+const MODULE_PAYMENT_PF_ENTRY_TXN_TYPE       = 'Trans. Type:';
+const MODULE_PAYMENT_PF_ENTRY_TXN_ID         = 'Trans. ID:';
+const MODULE_PAYMENT_PF_ENTRY_PARENT_TXN_ID  = 'Parent Trans. ID:';
 
 const MODULE_PAYMENT_PF_PURCHASE_DESCRIPTION_TITLE = STORE_NAME . ' purchase, Order #';
