@@ -8,8 +8,8 @@ to [contact the Payfast support team](https://payfast.io/contact/) should you re
 ## Installation
 
 1. **Access Server Root**  
-   Navigate to the root directory of your Zen Cart installation on your server. You should see folders such as "
-   includes," "images," and your admin folder (usually named with random letters).
+   Navigate to the root directory of your Zen Cart installation on your server. You should see folders such as
+   "includes," "images," and your admin folder (usually named with random letters).
 
 2. **Extract Module**  
    Unzip the module files to a temporary location on your computer.
@@ -18,7 +18,7 @@ to [contact the Payfast support team](https://payfast.io/contact/) should you re
    Upload the contents of the extracted module folder to your Zen Cart installation, matching the corresponding
    directories.
     - Ensure no files are overwritten; the Payfast files should only supplement existing directories.
-    - This behavior may vary depending on your FTP program. If you're unsure, manually copy the files as outlined in the
+    - This behaviour may vary depending on your FTP program. If you're unsure, manually copy the files as outlined in the
       detailed instructions.
 
 4. **Login to Admin Console**  
