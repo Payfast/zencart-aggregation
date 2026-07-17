@@ -1,6 +1,6 @@
 # zencart-aggregation
 
-## Payfast Aggregation module v1.5.0 for Zen Cart 2.1.0
+## Payfast Aggregation module v1.5.1 for Zen Cart 2.2.0
 
 This is the Payfast Aggregation module for Zen Cart. Please feel free
 to [contact the Payfast support team](https://payfast.io/contact/) should you require any assistance.
@@ -18,8 +18,8 @@ to [contact the Payfast support team](https://payfast.io/contact/) should you re
    Upload the contents of the extracted module folder to your Zen Cart installation, matching the corresponding
    directories.
     - Ensure no files are overwritten; the Payfast files should only supplement existing directories.
-    - This behaviour may vary depending on your FTP program. If you're unsure, manually copy the files as outlined in the
-      detailed instructions.
+    - This behaviour may vary depending on your FTP program. If you're unsure, manually copy the files as outlined in
+      the detailed instructions.
 
 4. **Login to Admin Console**  
    Access your Zen Cart admin panel.

@@ -1,5 +1,19 @@
 # Changelog
 
+## [[1.5.1]](https://github.com/Payfast/zencart-aggregation/releases/tag/v1.5.1)
+
+### Fixed
+
+- **Admin order confirmation emails**: Resolved an issue where the store admin did not receive an order confirmation
+  email after a successful Payfast payment, while the customer received theirs correctly.
+- **False "Payment Cancelled" notifications**: Fixed a race condition in the ITN handler that caused customers to
+  receive a payment cancellation email a few minutes after a successful payment, even though the payment had
+  reflected correctly.
+- **PHP Fatal error on ZenCart 2.2.0**: Resolved a `PHP Fatal error: Typed property order::$email_low_stock must not
+  be accessed before initialization` that caused ITN email notification crashes on ZenCart 2.2.0 due to uninitialised
+  typed properties in the order class. Added defensive null/initialisation guards before accessing order properties
+  during the ITN notification flow.
+
 ## [[1.5.0]](https://github.com/Payfast/zencart-aggregation/releases/tag/v1.5.0)
 
 ### Added

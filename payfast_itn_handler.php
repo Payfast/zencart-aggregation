@@ -54,11 +54,7 @@ require_once 'includes/classes/PayfastLogger.php';
 require_once 'includes/classes/PayfastITN.php';
 require_once 'includes/classes/ZenCartOrderManager.php';
 
-// Load email language constants (optional - we have fallbacks in getOrderConfirmationMessage)
-$emailLangFile = DIR_WS_LANGUAGES . (isset($GLOBALS['language']) ? $GLOBALS['language'] : 'english') . '/email_template_checkout.php';
-if ($emailLangFile && file_exists($emailLangFile)) {
-    require_once $emailLangFile;
-}
+// Checkout email constants are loaded on demand before send_order_email().
 
 if (!defined('PF_SOFTWARE_NAME')) {
     define('PF_SOFTWARE_NAME', 'ZenCart');
@@ -70,7 +66,7 @@ if (!defined('PF_MODULE_NAME')) {
     define('PF_MODULE_NAME', 'Payfast_ZenCart');
 }
 if (!defined('PF_MODULE_VER')) {
-    define('PF_MODULE_VER', '1.5.0');
+    define('PF_MODULE_VER', '1.5.1');
 }
 if (!defined('MODULE_PAYMENT_PF_SERVER_LIVE')) {
     define('MODULE_PAYMENT_PF_SERVER_LIVE', 'payfast.co.za');
@@ -205,32 +201,14 @@ class PayfastITNHandler
 
         $this->orderManager->addProductsToOrder($order, $zcOrderId);
 
-        // Send order confirmation email to customer
-        $order = new order($zcOrderId);
+        // Use the in-memory checkout order object; it already has email fields initialized by create_add_products().
         $zco_notifier->notify('NOTIFY_ORDER_CREATED', (int)$zcOrderId);
-
-        // Ensure zcDate is initialized for email template processing
-        global $zcDate;
-        if (!isset($zcDate) || !is_object($zcDate)) {
-            if (!class_exists('zcDate')) {
-                require_once DIR_WS_CLASSES . 'zcDate.php';
-            }
-            $zcDate = new zcDate();
-        }
-
-        // Send order confirmation email via zen_mail
-        zen_mail(
-            $order->customer['name'],
-            $order->customer['email_address'],
-            defined(
-                'EMAIL_TEXT_SUBJECT'
-            ) ? EMAIL_TEXT_SUBJECT . EMAIL_ORDER_NUMBER_SUBJECT . $zcOrderId : 'Order Confirmation',
-            $this->getOrderConfirmationMessage($order),
-            STORE_OWNER,
-            STORE_OWNER_EMAIL_ADDRESS,
-            [],
-            'checkout'
-        );
+        $this->ensureOrderEmailLanguageConstants();
+        $this->ensureZcDateInitialized();
+        $this->ensureOrderEmailStateInitialized($order);
+        $order->send_order_email($zcOrderId);
+        $this->sendAdminOrderNotification($order, $zcOrderId, $data, $order_totals);
+        $zco_notifier->notify('NOTIFY_CHECKOUT_PROCESS_AFTER_SEND_ORDER_EMAIL');
 
         $this->orderManager->deleteSession($zcSessID);
         $this->logger->log('Payfast ITN Complete');
@@ -308,6 +286,189 @@ class PayfastITNHandler
             null,
             'debug'
         );
+    }
+
+    private function ensureOrderEmailLanguageConstants(): void
+    {
+        if (defined('EMAIL_TEXT_HEADER')) {
+            return;
+        }
+
+        global $languageLoader;
+        if (isset($languageLoader) && method_exists($languageLoader, 'makeCatalogArrayConstants')) {
+            $languageLoader->makeCatalogArrayConstants('checkout_process');
+            if (defined('EMAIL_TEXT_HEADER')) {
+                return;
+            }
+        }
+
+        $language     = $_SESSION['language'] ?? ($GLOBALS['language'] ?? 'english');
+        $basePath     = DIR_FS_CATALOG . DIR_WS_LANGUAGES;
+        $fallbackFile = $basePath . 'english/lang.checkout_process.php';
+        $languageFile = $basePath . $language . '/lang.checkout_process.php';
+
+        $defines = [];
+        if (file_exists($fallbackFile)) {
+            $fallbackDefines = require $fallbackFile;
+            if (is_array($fallbackDefines)) {
+                $defines = $fallbackDefines;
+            }
+        }
+
+        if ($language !== 'english' && file_exists($languageFile)) {
+            $languageDefines = require $languageFile;
+            if (is_array($languageDefines)) {
+                $defines = array_merge($defines, $languageDefines);
+            }
+        }
+
+        foreach ($defines as $key => $value) {
+            if (!defined($key)) {
+                define($key, $value);
+            }
+        }
+    }
+
+    private function ensureZcDateInitialized(): void
+    {
+        global $zcDate;
+
+        if (isset($zcDate) && is_object($zcDate)) {
+            return;
+        }
+
+        if (!class_exists('zcDate')) {
+            require_once DIR_WS_CLASSES . 'zcDate.php';
+        }
+
+        $zcDate = new zcDate();
+    }
+
+    private function ensureOrderEmailStateInitialized(order $order): void
+    {
+        // Zen Cart 2.2.x introduces typed properties that may be unset in ITN-only flows.
+        if (!property_exists($order, 'email_low_stock')) {
+            return;
+        }
+
+        try {
+            $property = new ReflectionProperty($order, 'email_low_stock');
+            if (!$property->isInitialized($order)) {
+                $property->setValue($order, '');
+            }
+        } catch (ReflectionException $e) {
+            // Keep ITN processing resilient if the core order class changes.
+        }
+    }
+
+    private function sendAdminOrderNotification(order $order, int $zcOrderId, array $data, array $orderTotals = []): void
+    {
+        $recipients = $this->getAdminNotificationRecipients();
+        if ($recipients === []) {
+            return;
+        }
+
+        $subject = 'New Payfast order received: #' . $zcOrderId;
+        if (defined('STORE_NAME') && STORE_NAME !== '') {
+            $subject = STORE_NAME . ' - ' . $subject;
+        }
+
+        $body        = $this->buildAdminOrderNotificationMessage($order, $zcOrderId, $data, $orderTotals);
+        $htmlMessage = ['EMAIL_MESSAGE_HTML' => nl2br(zen_output_string_protected($body))];
+        $fromName    = defined('STORE_NAME') ? STORE_NAME : 'Store';
+        $fromEmail   = defined('EMAIL_FROM') && EMAIL_FROM !== ''
+            ? EMAIL_FROM
+            : (defined('STORE_OWNER_EMAIL_ADDRESS') ? STORE_OWNER_EMAIL_ADDRESS : '');
+
+        zen_mail(
+            '',
+            implode(', ', $recipients),
+            $subject,
+            $body,
+            $fromName,
+            $fromEmail,
+            $htmlMessage,
+            'checkout_extra',
+            [],
+            $order->customer['firstname'] . ' ' . $order->customer['lastname'],
+            $order->customer['email_address']
+        );
+    }
+
+    private function getAdminNotificationRecipients(): array
+    {
+        $fallbackRecipients = [];
+        if (defined('STORE_OWNER_EMAIL_ADDRESS') && STORE_OWNER_EMAIL_ADDRESS !== '') {
+            $fallbackRecipients[] = STORE_OWNER_EMAIL_ADDRESS;
+        }
+
+        $debugEmail = trim((string)$this->config->getDebugEmail());
+        if ($debugEmail !== '') {
+            $fallbackRecipients[] = $debugEmail;
+        }
+
+        $recipients = [];
+        foreach ($fallbackRecipients as $email) {
+            $normalizedEmail = strtolower(trim($email));
+            if ($normalizedEmail === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                continue;
+            }
+            if (in_array($normalizedEmail, array_map('strtolower', $recipients), true)) {
+                continue;
+            }
+            $recipients[] = $email;
+        }
+
+        return $recipients;
+    }
+
+    private function buildAdminOrderNotificationMessage(
+        order $order,
+        int $zcOrderId,
+        array $data,
+        array $orderTotals = []
+    ): string
+    {
+        $lines = [
+            'A new Payfast order has been created.',
+            '----------------------------------------',
+            'Order ID: ' . $zcOrderId,
+            'Payfast Transaction ID: ' . ($data['pf_payment_id'] ?? 'n/a'),
+            'Payfast Status: ' . ($data['payment_status'] ?? 'n/a'),
+            'Customer: ' . trim(($order->customer['firstname'] ?? '') . ' ' . ($order->customer['lastname'] ?? '')),
+            'Email: ' . ($order->customer['email_address'] ?? 'n/a'),
+            'Telephone: ' . ($order->customer['telephone'] ?? 'n/a'),
+            'Payment Method: ' . ($order->info['payment_method'] ?? 'n/a'),
+            '',
+            'Products:',
+        ];
+
+        foreach ($order->products as $product) {
+            $line = ($product['qty'] ?? 0) . ' x ' . ($product['name'] ?? 'Product');
+            if (!empty($product['model'])) {
+                $line .= ' (' . $product['model'] . ')';
+            }
+            $lines[] = $line;
+
+            if (!empty($product['attributes']) && is_array($product['attributes'])) {
+                foreach ($product['attributes'] as $attribute) {
+                    $lines[] = '  - ' . ($attribute['option'] ?? 'Option') . ': ' . ($attribute['value'] ?? '');
+                }
+            }
+        }
+
+        $totals = $order->totals ?? [];
+        if ($totals === [] && $orderTotals !== []) {
+            $totals = $orderTotals;
+        }
+
+        $lines[] = '';
+        $lines[] = 'Totals:';
+        foreach ($totals as $total) {
+            $lines[] = trim(strip_tags(($total['title'] ?? '') . ' ' . ($total['text'] ?? '')));
+        }
+
+        return implode("\n", $lines) . "\n";
     }
 
     private function getOrderConfirmationMessage(object $order): string
