@@ -33,7 +33,7 @@ if (!defined('PF_MODULE_NAME')) {
     define('PF_MODULE_NAME', 'Payfast_ZenCart');
 }
 if (!defined('PF_MODULE_VER')) {
-    define('PF_MODULE_VER', '1.5.0');
+    define('PF_MODULE_VER', '1.5.1');
 }
 
 /**
@@ -92,6 +92,7 @@ class payfast extends base
     public string $form_action_url;
     public int $order_status;
     public int|string $sort_order;
+    public ?int $_check = null;
 
     /**
      * @param string $id
